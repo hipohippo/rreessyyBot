@@ -25,7 +25,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def resume(update: Update, context: ContextTypes.DEFAULT_TYPE, message_prompt="...resume searching"):
     context.bot_data["enabled"] = True
     chat_id = update.effective_chat.id
-    await context.bot.send_message(chat_id=chat_id, text=message_prompt)
+    await context.bot.send_message(chat_id=chat_id, text=f"{message_prompt} {context.bot_data['restaurant']}")
     context.job_queue.run_once(find_spot_polling, when=0, name="find_spot_polling", chat_id=chat_id)
 
 
@@ -69,20 +69,30 @@ async def send_heart_beat(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(context.bot_data["heartbeat_recipient_id"], text=f"heartbeat")
 
 
-async def update_bot_search_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def change_bot_search_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
     received_text = update.message.text.split(" ")
     if "" in received_text:
         received_text.remove("")
-    platform = remove_nonalphabet(received_text[1]).lower()
-    context.bot_data["platform"] = Platform(platform)
-    context.bot_data["restaurant"] = [remove_nonalphabet(received_text[2])]
-    context.bot_data["parser"] = {Platform.Resy: ResyParser(), Platform.Tock: TockParser()}[
-        context.bot_data["platform"]
-    ]
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text=f"{context.bot_data['restaurant']}: searching for spot on {context.bot_data['platform'].value}",
-    )
+    if len(received_text) != 3:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="/change need at least 2 arguments. Example: __/change resy don-angies__",
+        )
+    else:
+        platform = remove_nonalphabet(received_text[1]).lower()
+        if platform not in [v.value for v in Platform]:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id, text=f"cannot recognize {platform}",
+            )
+        context.bot_data["platform"] = Platform(platform)
+        context.bot_data["restaurant"] = [remove_nonalphabet(received_text[2])]
+        context.bot_data["parser"] = {Platform.Resy: ResyParser(), Platform.Tock: TockParser()}[
+            context.bot_data["platform"]
+        ]
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=f"{context.bot_data['restaurant']}: searching for spot on {context.bot_data['platform'].value}",
+        )
 
 
 def init_application_context(application, config: Union[dict, SectionProxy]):
@@ -111,7 +121,7 @@ def init_application_handler(application):
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("pause", pause))
     application.add_handler(CommandHandler("resume", resume))
-    application.add_handler(CommandHandler("update", update_bot_search_target))
+    application.add_handler(CommandHandler("change", change_bot_search_target))
     return application
 
 
