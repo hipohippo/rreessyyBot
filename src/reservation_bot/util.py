@@ -16,7 +16,6 @@ class Platform(Enum):
 
 def get_geckodriver_firefox(geckodriver_file: str):
     profile = webdriver.FirefoxProfile()
-    ## profile.add_extension(extension="c:/users/weiwe/geckodriver/bypasspaywalls.xpi")
     driver = webdriver.Firefox(firefox_profile=profile, executable_path=geckodriver_file)
     return driver
 

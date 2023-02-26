@@ -7,7 +7,7 @@ from typing import Tuple, List
 import pandas as pd
 from selenium.webdriver.remote.webdriver import WebDriver
 
-from src.reservation_bot.platform_parser import PlatformParser
+from reservation_bot.platform_parser import PlatformParser
 
 
 class TockParser(PlatformParser):

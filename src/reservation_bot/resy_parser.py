@@ -6,7 +6,7 @@ from typing import List, Tuple
 import pandas as pd
 from selenium.webdriver.remote.webdriver import WebDriver
 
-from src.reservation_bot.platform_parser import PlatformParser
+from reservation_bot.platform_parser import PlatformParser
 
 
 class ResyParser(PlatformParser):
