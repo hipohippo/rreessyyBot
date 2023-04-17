@@ -1,4 +1,4 @@
-.idea
 *.pyc
 local_test.py
-uid.xlsx
+.idea
+__pycache__
