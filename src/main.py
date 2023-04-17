@@ -34,7 +34,7 @@ def init_application_context(
     application.bot_data["config_file"] = sysargv[2]
     application.bot_data["venue_list_file"] = sysargv[3]
     application.bot_data["heart_beat_chat"] = config["heart_beat_chat"]
-    application.bot_data["notify_chat"] = config["notify_chat"]
+    application.bot_data["notify_chat"] = [int(chat_id.strip()) for chat_id in config["notify_chat"].split(",")]
     return application
 
 

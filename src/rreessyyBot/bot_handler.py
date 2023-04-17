@@ -31,16 +31,20 @@ async def find_and_publish_seat(context: ContextTypes.DEFAULT_TYPE):
         if no_seat_flag:
             logging.debug("no seats found")
         else:
-            await context.bot.send_message(
-                chat_id=context.bot_data["notify_chat"],
-                text=seat_message,
-                parse_mode=ParseMode.HTML,
-                disable_web_page_preview=True,
-            )
+            for chat_id in context.bot_data["notify_chat"]:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=seat_message,
+                    parse_mode=ParseMode.HTML,
+                    disable_web_page_preview=True,
+                )
 
 
 async def job_load_dynamic_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await job_load_dynamic_config_job(context)
+    if update.effective_chat.id == context.bot_data["notify_chat"][0]:
+        await job_load_dynamic_config_job(context)
+    else:
+        logging.error(f"unauthorized operation from {update.effective_chat.id}")
 
 
 async def job_load_dynamic_config_job(context: ContextTypes.DEFAULT_TYPE):
