@@ -13,7 +13,8 @@ from rreessyyBot.bot_handler import (
     add_venue,
     remove_venue,
     show_enabled_venue,
-    show_all_venue, add_to_venue_list_csv,
+    show_all_venue,
+    add_to_venue_list_csv,
 )
 from rreessyyBot.resy_bot_config import ResyBotConfig
 
@@ -27,13 +28,15 @@ def build_bot_app(bot_config_dict: Union[dict, SectionProxy]) -> Application:
                 CommandHandler("add", add_venue),
                 CommandHandler("remove", remove_venue),
                 CommandHandler("show", show_enabled_venue),
-                CommandHandler("all", show_all_venue),
-                CommandHandler("listadd", add_to_venue_list_csv)
+                CommandHandler("listall", show_all_venue),
+                CommandHandler("listadd", add_to_venue_list_csv),
             ]
         )
-        .add_repeating_jobs([(smoke_test_job, {"first": 5, "interval": 4 * 60 * 60})])
         .add_repeating_jobs(
-            [(find_and_publish_job, {"first": 15, "interval": int(bot_config_dict["search_interval"])})]
+            [
+                (find_and_publish_job, {"first": 15, "interval": int(bot_config_dict["search_interval"])}),
+                (smoke_test_job, {"first": 5, "interval": 4 * 60 * 60}),
+            ]
         )
         .build()
     )
