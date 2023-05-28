@@ -2,7 +2,7 @@ import logging
 from typing import Set
 
 import pandas as pd
-from telegram import Update
+from telegram import Update, BotCommand
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
@@ -131,3 +131,14 @@ async def smoke_test_job(context: ContextTypes.DEFAULT_TYPE):
             disable_web_page_preview=True,
         )
     return
+
+async def init_cmd(context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.setMyCommands(
+        [
+            BotCommand("/add", "Add Venue"),
+            BotCommand("/remove", "Remove Venue"),
+            BotCommand("/show", "Show Enabled Venue"),
+            BotCommand("/listadd", "File to Add Venue"),
+            BotCommand("/listall", "Show All Venues"),
+        ]
+    )

@@ -15,6 +15,7 @@ from rreessyyBot.bot_handler import (
     show_enabled_venue,
     show_all_venue,
     add_to_venue_list_csv,
+    init_cmd,
 )
 from rreessyyBot.resy_bot_config import ResyBotConfig
 
@@ -32,6 +33,7 @@ def build_bot_app(bot_config_dict: Union[dict, SectionProxy]) -> Application:
                 CommandHandler("listadd", add_to_venue_list_csv),
             ]
         )
+        .add_onetime_jobs([(init_cmd, {"when": 2})])
         .add_repeating_jobs(
             [
                 (find_and_publish_job, {"first": 15, "interval": int(bot_config_dict["search_interval"])}),
