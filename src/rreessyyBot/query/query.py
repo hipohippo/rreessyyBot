@@ -1,18 +1,18 @@
 import json
 import logging
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Set
 
 import pandas as pd
 import requests
 from requests import Response
 
-from rreessyyBot.venue_slot import Venue, Slot, format_slot_in_html
+from rreessyyBot.query.venue_slot import Venue, Slot, format_slot_in_html
 
 
 def find_seat(
-    api_key,
-    auth_token,
-    venues: List[Venue],
+    api_key: str,
+    auth_token: str,
+    venues: Set[Venue],
     dt: pd.Timestamp,
     party_size: int,
     start_time: pd.Timestamp,
@@ -20,7 +20,7 @@ def find_seat(
     venue_id_map: Dict[int, Venue],
 ) -> Tuple[str, bool]:
     venue_id_list = [venue.id for venue in venues]
-    response = query_resy(dt, party_size, venue_id_list, api_key, auth_token)
+    response = _query_resy(dt, party_size, venue_id_list, api_key, auth_token)
     daily_slot = _parse_request_response(response, venue_id_map)
 
     ## restrict to [start_time, end_time]
@@ -35,7 +35,7 @@ def find_seat(
     return seats_message, no_seat_flag
 
 
-def query_resy(dt: pd.Timestamp, party_size: int, venue_id_list: List[int], api_key: str, auth_token: str) -> Response:
+def _query_resy(dt: pd.Timestamp, party_size: int, venue_id_list: List[int], api_key: str, auth_token: str) -> Response:
     """
     query_resy(pd.Timestamp("2023-04-01", 2, [1505, 6194], api_key, auth_token)
     :param dt:

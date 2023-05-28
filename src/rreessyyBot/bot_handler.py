@@ -1,118 +1,133 @@
 import logging
-import os
-from configparser import ConfigParser
+from typing import Set
 
 import pandas as pd
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from rreessyyBot.query import find_seat
-from rreessyyBot.venue_slot import Venue
+from hipo_telegram_bot_common.util import restricted
+from rreessyyBot.query.query import find_seat
+from rreessyyBot.query.venue_slot import Venue
+from rreessyyBot.resy_bot_config import ResyBotConfig
 
 
-async def find_and_publish_seat(context: ContextTypes.DEFAULT_TYPE):
-    dt = context.bot_data["dates"][context.bot_data["current_dt_idx"]]
-    context.bot_data["current_dt_idx"] = (context.bot_data["current_dt_idx"] + 1) % len(context.bot_data["dates"])
-    venues = context.bot_data["venues"]
+@restricted
+async def add_venue(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    bot_config: ResyBotConfig = context.bot_data["bot_config"]
+    venue_webname = update.message.text.split(" ")[1]
+    venue = bot_config.venue_webname_map.get(venue_webname, None)
 
-    logging.debug(f"looking for seat on {dt}")
-    for party_size in context.bot_data["party_size"]:
+    if venue is None:
+        await update.effective_chat.send_message(f"{venue_webname} not supported")
+    elif venue in bot_config.enabled_venues:
+        await update.effective_chat.send_message(f"{venue_webname} already enabled")
+    else:
+        bot_config.enabled_venues.add(venue)
+        await update.effective_chat.send_message(f"{venue_webname} added")
+    return
+
+
+@restricted
+async def remove_venue(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    bot_config: ResyBotConfig = context.bot_data["bot_config"]
+    venue_webname = update.message.text.split(" ")[1]
+    venue = bot_config.venue_webname_map.get(venue_webname, None)
+
+    if venue is not None and venue in bot_config.enabled_venues:
+        bot_config.enabled_venues.remove(venue)
+        await update.effective_chat.send_message(f"{venue} removed")
+    else:
+        await update.effective_chat.send_message(f"{venue} not enabled or not supported")
+    return
+
+
+@restricted
+async def show_enabled_venue(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    bot_config: ResyBotConfig = context.bot_data["bot_config"]
+    # if update and update.message and update.message.text:
+    await update.effective_chat.send_message("\n".join([venue.webname for venue in bot_config.enabled_venues]))
+    return
+
+
+@restricted
+async def show_all_venue(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    bot_config: ResyBotConfig = context.bot_data["bot_config"]
+    # if update and update.message and update.message.text:
+    await update.effective_chat.send_message("\n".join([webname for webname in bot_config.all_venue_df["webname"]]))
+    return
+
+
+@restricted
+async def add_to_venue_list_csv(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    bot_config: ResyBotConfig = context.bot_data["bot_config"]
+    split_msg = update.message.text.split(" ")
+    webname = split_msg[1]
+    id = int(split_msg[2])
+    city = split_msg[3]
+
+    venue = bot_config.venue_webname_map.get(webname, None)
+    if venue is None:
+        bot_config.add_venue_to_list_file(Venue(id, webname, city))
+        await update.effective_chat.send_message(f"{webname} added to the list file")
+    else:
+        await update.effective_chat.send_message(f"{webname} already in the list")
+
+
+async def find_and_publish_job(context: ContextTypes.DEFAULT_TYPE):
+    bot_config: ResyBotConfig = context.bot_data["bot_config"]
+    dt = bot_config.dates[bot_config.current_dt_idx]
+    bot_config.current_dt_idx = (bot_config.current_dt_idx + 1) % len(bot_config.dates)
+    enabled_venues: Set[Venue] = bot_config.enabled_venues
+
+    logging.debug(f"querying {dt}")
+    for party_size in bot_config.party_size:
         seat_message, no_seat_flag = find_seat(
-            context.bot_data["resy_api_key"],
-            context.bot_data["resy_auth_token"],
-            venues,
+            bot_config.resy_api_key,
+            bot_config.resy_auth_token,
+            enabled_venues,
             dt,
             party_size,
-            context.bot_data["start_time"],
-            context.bot_data["end_time"],
-            context.bot_data["venue_id_map"],
+            bot_config.start_time,
+            bot_config.end_time,
+            bot_config.venue_id_map,
         )
         if no_seat_flag:
             logging.debug("no seats found")
         else:
-            for chat_id in context.bot_data["notify_chat"]:
+            for chat_id in bot_config.publish_chat:
                 await context.bot.send_message(
                     chat_id=chat_id,
                     text=seat_message,
                     parse_mode=ParseMode.HTML,
                     disable_web_page_preview=True,
                 )
+    return
 
 
-async def job_load_dynamic_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_chat.id == context.bot_data["notify_chat"][0]:
-        await job_load_dynamic_config_job(context)
-    else:
-        logging.error(f"unauthorized operation from {update.effective_chat.id}")
-
-
-async def job_load_dynamic_config_job(context: ContextTypes.DEFAULT_TYPE):
-    config_parser = ConfigParser()
-    config_parser.read(os.path.join(context.bot_data["config_dir"], context.bot_data["config_file"]))
-    for field, to_type in [
-        ("resy_api_key", str),
-        ("resy_auth_token", str),
-        ("start_time", pd.Timestamp),
-        ("end_time", pd.Timestamp),
-        ("date_offset", int),
-    ]:
-        context.bot_data[field] = to_type(config_parser["dynamic_config"][field])
-
-    context.bot_data["dates"] = [
-        pd.Timestamp(x)
-        for x in pd.date_range(
-            pd.Timestamp.now(), pd.Timestamp.now() + pd.Timedelta(context.bot_data["date_offset"], "Day")
-        )
-    ]
-    context.bot_data["current_dt_idx"] = 0
-    context.bot_data["party_size"] = [2, 4]  # for the time being..
-    logging.info(
-        f'updated search dates start:{context.bot_data["dates"][0].strftime("%m-%d")}, '
-        f'end: {context.bot_data["dates"][-1].strftime("%m-%d")},'
-        f'start_time:{context.bot_data["start_time"].time()}, end_time:{context.bot_data["end_time"].time()}'
-    )
-    await refresh_venue_list(context)
-    await send_smoke_test(context)
-
-
-async def refresh_venue_list(context: ContextTypes.DEFAULT_TYPE):
-    venue_csv = pd.read_csv(os.path.join(context.bot_data["config_dir"], context.bot_data["venue_list_file"]))
-    venue_csv = venue_csv[venue_csv["enable"] == 1]
-    context.bot_data["venues"] = [Venue(row["id"], row["webname"], row["city"]) for idx, row in venue_csv.iterrows()]
-    context.bot_data["venue_id_map"] = {venue.id: venue for venue in context.bot_data["venues"]}
-    context.bot_data["venue_id_map"].update({50746: Venue(50746, "salinas", "ny")})  ## smoke test
-    logging.info(f'updated venues: {[venue.webname for venue in context.bot_data["venues"]]}')
-
-
-async def send_heart_beat(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(
-        chat_id=context.bot_data["heart_beat_chat"],
-        text=f"heart beat from RReessyybot at {pd.Timestamp.utcnow().strftime('%Y-%m-%d %H:%M')}",
-    )
-
-
-async def send_smoke_test(context):
+async def smoke_test_job(context: ContextTypes.DEFAULT_TYPE):
+    bot_config: ResyBotConfig = context.bot_data["bot_config"]
     today = pd.Timestamp.now().weekday()
     offset = (5 - today) if today < 5 else 12 - today
     next_saturday: pd.Timestamp = pd.Timestamp.now() + pd.Timedelta(offset, "days")
 
     seat_message, no_seat_flag = find_seat(
-        context.bot_data["resy_api_key"],
-        context.bot_data["resy_auth_token"],
-        [Venue(50746, "salinas", "ny")],
+        bot_config.resy_api_key,
+        bot_config.resy_auth_token,
+        {Venue(50746, "salinas", "ny")},
         next_saturday,
         4,
-        context.bot_data["start_time"],
-        context.bot_data["end_time"],
-        context.bot_data["venue_id_map"],
+        bot_config.start_time,
+        bot_config.end_time,
+        bot_config.venue_id_map,
     )
     if no_seat_flag:
         logging.debug("no seats found")
     else:
         await context.bot.send_message(
-            chat_id=context.bot_data["heart_beat_chat"],
+            chat_id=bot_config.heart_beat_chat,
             text="SmokeTest" + seat_message,
             parse_mode=ParseMode.HTML,
             disable_web_page_preview=True,
         )
+    return

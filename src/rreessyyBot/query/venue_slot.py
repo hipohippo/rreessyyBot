@@ -12,6 +12,12 @@ class Venue:
     def __str__(self):
         return f"{self.webname}, {self.id}"
 
+    def __eq__(self, other):
+        return self.id == other.id and self.webname == other.webname and self.city == other.city
+
+    def __hash__(self):
+        return hash((self.id, self.webname, self.city))
+
 
 class SlotField:
     datetime = "datetime"
@@ -48,7 +54,7 @@ def format_slot_in_html(dt: pd.Timestamp, all_slots: Dict[Venue, List[Slot]]) ->
                 ]
             )
             html_links.append(html_link)
-    return f"~~~~~~~~<b>{dt.strftime('%m-%d')}</b>~~~~~~~~\n" + "\n\n".join(html_links)
+    return f"~~~~~~~~<b>{dt.strftime('%m-%d %a')}</b>~~~~~~~~\n" + "\n\n".join(html_links)
 
 
 def get_link(venue: Venue, party_size: int, datetime: pd.Timestamp) -> str:
