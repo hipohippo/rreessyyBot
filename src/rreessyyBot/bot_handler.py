@@ -80,7 +80,7 @@ async def find_and_publish_job(context: ContextTypes.DEFAULT_TYPE):
     bot_config.current_dt_idx = (bot_config.current_dt_idx + 1) % len(bot_config.dates)
     enabled_venues: Set[Venue] = bot_config.enabled_venues
 
-    logging.debug(f"querying {dt}")
+    logging.getLogger(bot_config.bot_name).debug(f"querying {dt}")
     for party_size in bot_config.party_size:
         seat_message, no_seat_flag = find_seat(
             bot_config.resy_api_key,
@@ -93,7 +93,7 @@ async def find_and_publish_job(context: ContextTypes.DEFAULT_TYPE):
             bot_config.venue_id_map,
         )
         if no_seat_flag:
-            logging.debug("no seats found")
+            logging.getLogger(bot_config.bot_name).debug("no seats found")
         else:
             for chat_id in bot_config.publish_chat:
                 await context.bot.send_message(
@@ -122,7 +122,7 @@ async def smoke_test_job(context: ContextTypes.DEFAULT_TYPE):
         bot_config.venue_id_map,
     )
     if no_seat_flag:
-        logging.debug("no seats found")
+        logging.getLogger(bot_config.bot_name).debug("no seats found")
     else:
         await context.bot.send_message(
             chat_id=bot_config.heart_beat_chat,

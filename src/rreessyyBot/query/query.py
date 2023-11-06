@@ -75,7 +75,7 @@ def _parse_request_response(response: Response, venue_id_map: Dict[int, Venue]) 
         value: Slot(time, size, type)
     """
     if response.status_code != 200:
-        logging.error("bad response")
+        logging.getLogger(__name__).error("bad response")
         return dict()
     response_json = json.loads(response.text)
     slot_by_venue = response_json["results"]["venues"]
@@ -95,7 +95,7 @@ def _parse_request_response(response: Response, venue_id_map: Dict[int, Venue]) 
 def _parse_single_slot(single_slot_message: str) -> Slot:
     split_message = single_slot_message.split("/")
     if len(split_message) < 11:
-        logging.error(f"failed to parse {single_slot_message}")
+        logging.getLogger(__name__).error(f"failed to parse {single_slot_message}")
         return None
     else:
         return Slot(pd.Timestamp(f"{split_message[7]} {split_message[8]}"), int(split_message[9]), split_message[10])

@@ -57,7 +57,7 @@ class ResyBotConfig(BotConfig):
             Venue(row["id"], row["webname"], row["city"])
             for idx, row in self.all_venue_df[self.all_venue_df["enable"] == 1].iterrows()
         }
-        logging.info(
+        logging.getLogger(self.bot_name).info(
             f'updated search dates start:{self.dates[0].strftime("%m-%d")}, '
             f'end: {self.dates[-1].strftime("%m-%d")},'
             f"start_time:{self.start_time.time()}, end_time:{self.end_time.time()}"
